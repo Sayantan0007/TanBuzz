@@ -6,7 +6,7 @@ const inngest = new Inngest({ id: "tanbuzz-app" });
 
 // Inngest Function to save user data to database
 const syncUsercreation = inngest.createFunction(
-  { id: "sync-user-from-clerk" },
+  { id: "sync-user-from-clerk-create" },
   { event: "clerk/user.created" },
   async ({ event }) => {
     const { id, first_name, last_name, email_addresses, image_url } =
