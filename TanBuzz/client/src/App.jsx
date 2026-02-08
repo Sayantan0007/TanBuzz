@@ -8,12 +8,20 @@ import Connection from './pages/Connection'
 import Profile from './pages/Profile'
 import Discover from './pages/Discover'
 import CreatePost from './pages/CreatePost'
-import { useUser } from '@clerk/clerk-react'
+import { useUser, useAuth } from '@clerk/clerk-react'
 import Layout from './pages/Layout'
 import { Toaster } from 'react-hot-toast'
+import { useEffect } from 'react'
 
 const App = () => {
   const { isSignedIn } = useUser();
+  const { getToken } = useAuth();
+
+  useEffect(() =>{
+    if(isSignedIn){
+      getToken().then((token) =>console.log(token))
+    }
+  }, [isSignedIn])
   return (
     <>
     <Toaster />
