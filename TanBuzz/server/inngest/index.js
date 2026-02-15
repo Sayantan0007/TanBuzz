@@ -2,6 +2,8 @@ const { Inngest } = require("inngest");
 const User = require("../model/user");
 const Connection = require("../model/connection");
 const sendEmail = require("../configure/nodemailer");
+const Story = require("../model/story");
+const Message = require("../model/message");
 
 // Create a client to send and receive events
 const inngest = new Inngest({ id: "tanbuzz-app" });
@@ -110,11 +112,56 @@ const sendConnectionRequestReminder = inngest.createFunction(
     });
   },
 );
+// delete story after 24 hours of creation
+const deleteStroy = inngest.createFunction(
+  { id: "delete-story-after-24hours" },
+  { event: "app/story.delete" },
+  async ({ event, step }) => {
+    const { storyId } = event.data;
+    const after24hrs = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await step.sleepUntil("delete-story", after24hrs);
+    await step.run("delete-story", async () => {
+      await Story.findByIdAndDelete(storyId);
+      return { message: "Story deleted successfully" };
+    });
+  },
+);
+// send notification of unseen messages
+const sendNotificationOfUnseenMsgs = inngest.createFunction(
+  { id: "send-notification-of-unseen-messages" },
+  { cron: "TZ=Asia/Kolkata 0 9 * * *" }, //every day at 9 AM IST
+  async ({ step }) => {
+    const messages = await Message.find({ seen: false }).populate("to_user_id");
+    const unseenCount = {};
+    messages.map((msg) => {
+      unseenCount[msg.to_user_id._id] =
+        (unseenCount[msg.to_user_id._id] || 0) + 1;
+    });
+    for (const userId in unseenCount) {
+      const user = await User.findById(userId);
+      const subject = `🔔 You have ${unseenCount[userId]} unread messages on TanBuzz`;
+      const body = `<div style="font-family: Arial, sans-serif; padding:20px;">
+        <h3>Hi ${user.full_name},</h3>
+        <p>You have ${unseenCount[userId]} unread messages on TanBuzz.</p>
+        <p>Click <a href="${process.env.FRONTEND_URL}/messages" style="color: #10b981">here</a> to view them.</p>
+        <p>Best,<br/>TanBuzz Team - Stay Connected</p>
+      </div>`;
+      await sendEmail({
+        to: user.email,
+        subject,
+        body,
+      });
+    }
+    return { message: "Notification sent for unseen messages" };
+  },
+);
 // Create an empty array where we'll export future Inngest functions
 const functions = [
   syncUsercreation,
   syncUserUpdation,
   syncUserDeletion,
   sendConnectionRequestReminder,
+  deleteStroy,
+  sendNotificationOfUnseenMsgs,
 ];
 module.exports = { inngest, functions };

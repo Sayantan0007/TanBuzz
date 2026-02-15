@@ -6,7 +6,10 @@ const connectDB = require("./configure/dbconnect");
 const { inngest, functions } = require("./inngest/index");
 const { serve } = require("inngest/express");
 const { clerkMiddleware } = require("@clerk/express");
-const route = require("./routes/userRouter");
+const userRoute = require("./routes/userRouter");
+const postRoute = require("./routes/postRoutes");
+const storyRoute = require("./routes/storyRoutes");
+const msgRoute = require("./routes/messageRoutes");
 
 const port = process.env.PORT;
 const app = express();
@@ -18,7 +21,10 @@ app.use(cors());
 app.use(clerkMiddleware());
 
 app.use("/api/inngest", serve({ client: inngest, functions }));
-app.use("/api/user", route);
+app.use("/api/user", userRoute);
+app.use("/api/post", postRoute);
+app.use("/api/story", storyRoute);
+app.use("/api/message", msgRoute);
 app.get("/", (req, res) => {
   res.send("Welcome to tanbuzz backend");
 });

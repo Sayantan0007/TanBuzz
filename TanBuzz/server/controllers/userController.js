@@ -1,5 +1,7 @@
 const imagekit = require("../configure/imageKit");
+const { inngest } = require("../inngest/index");
 const Connection = require("../model/connection");
+const Post = require("../model/post");
 const User = require("../model/user");
 const fs = require("fs");
 const userControllers = {
@@ -15,7 +17,7 @@ const userControllers = {
       }
       res.status(200).json({ success: true, user });
     } catch (error) {
-      return res.status(401).json({ success: false, message: error.message });
+      return res.status(500).json({ success: false, message: error.message });
     }
   },
   //   update user data
@@ -92,7 +94,7 @@ const userControllers = {
       });
     } catch (error) {
       console.log(error);
-      return res.status(401).json({ success: false, message: error.message });
+      return res.status(500).json({ success: false, message: error.message });
     }
   },
   // find users by username,email,location,name
@@ -115,7 +117,7 @@ const userControllers = {
       res.status(200).json({ success: true, users: filteredUsers });
     } catch (error) {
       console.log(error);
-      return res.status(401).json({ success: false, message: error.message });
+      return res.status(500).json({ success: false, message: error.message });
     }
   },
   // follow users
@@ -142,7 +144,7 @@ const userControllers = {
       });
     } catch (error) {
       console.log(error);
-      res.status(401).json({ success: false, message: error.message });
+      res.status(500).json({ success: false, message: error.message });
     }
   },
   // unfollow User
@@ -164,7 +166,7 @@ const userControllers = {
       });
     } catch (error) {
       console.log(error);
-      res.status(401).json({ success: false, message: error.message });
+      res.status(500).json({ success: false, message: error.message });
     }
   },
   // send connection request
@@ -194,9 +196,16 @@ const userControllers = {
         ],
       });
       if (!alreadConnected) {
-        await Connection.create({
+        const newConnection = await Connection.create({
           from_user_id: userId,
           to_user_id: id,
+        });
+        // trigger inngest function to send reminder email
+        inngest.send({
+          name: "app/connection-request",
+          data: {
+            connectionId: newConnection._id,
+          },
         });
         res
           .status(200)
@@ -214,7 +223,7 @@ const userControllers = {
       }
     } catch (error) {
       console.log(error);
-      res.status(401).json({ success: false, message: error.message });
+      res.status(500).json({ success: false, message: error.message });
     }
   },
   // get User Connections
@@ -242,7 +251,7 @@ const userControllers = {
       });
     } catch (error) {
       console.log(error);
-      res.status(401).json({ success: false, message: error.message });
+      res.status(500).json({ success: false, message: error.message });
     }
   },
   // accept connection request
@@ -255,13 +264,15 @@ const userControllers = {
         to_user_id: userId,
         status: "pending",
       });
-      if(!connectionRequest){
-        return  res.status(400).json({ success: false, message: "Connection request not found." });
+      if (!connectionRequest) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Connection request not found." });
       }
       const user = await User.findById(userId);
       user.connections.push(id);
       await user.save();
-      
+
       const toUser = await User.findById(id);
       toUser.connections.push(userId);
       await toUser.save();
@@ -271,11 +282,30 @@ const userControllers = {
 
       res.status(200).json({
         success: true,
-        message: "Connection request accepted. You are now connected to " + toUser.username,
+        message:
+          "Connection request accepted. You are now connected to " +
+          toUser.username,
       });
     } catch (error) {
       console.log(error);
-      res.status(401).json({ success: false, message: error.message });
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
+  // viw profiles
+  viewProfile: async (req, res) => {
+    try {
+      const { profileId } = req.body;
+      const profile = await User.findById(profileId);
+      if (!profile) {
+        return res
+          .status(404)
+          .json({ success: false, message: "User not found" });
+      }
+      const posts = await Post.find({ user: profileId }).populate("user");
+      res.status(200).json({ success: true, profile, posts });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ success: false, message: error.message });
     }
   },
 };
