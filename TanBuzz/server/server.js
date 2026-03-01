@@ -19,11 +19,20 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(
   cors({
-    origin: "https://tan-buzz.vercel.app", // your frontend URL
+    origin: function (origin, callback) {
+      // allow requests with no origin (e.g. mobile apps, curl)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) === -1) {
+        const msg = `CORS policy forbids access from ${origin}`;
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   }),
-);app.use(clerkMiddleware());
+);
+app.use(clerkMiddleware());
 
 app.use("/api/inngest", serve({ client: inngest, functions }));
 app.use("/api/user", userRoute);
