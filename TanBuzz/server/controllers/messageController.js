@@ -7,7 +7,7 @@ const connections = {};
 // controller function for the SSE endpoint
 const sseController = (req, res) => {
   const { userId } = req.params;
-  console.log("New Client Connected : ", userId);
+  // console.log("New Client Connected : ", userId);
 
   // Set headers for SSE
   res.setHeader("Content-Type", "text/event-stream");
@@ -19,7 +19,7 @@ const sseController = (req, res) => {
   connections[userId] = res;
 
   // Send a welcome message to the client
-  res.write(`data: Welcome, User ${userId}!\n\n`);
+  res.write(`log: Welcome, User ${userId}!\n\n`);
 
   // Handle client disconnection
   req.on("close", () => {
@@ -36,7 +36,7 @@ const messageController = {
       const { to_user_id, content } = req.body;
       const image = req.file;
       let media_url = "";
-      let msg_type = text ? "text" : "image";
+      let msg_type = content ? "text" : "image";
       if (msg_type === "image") {
         const fileBuffer = fs.readFileSync(image.path);
         const response = await imagekit.upload({
@@ -114,7 +114,7 @@ const messageController = {
     try {
       const { userId } = req.auth();
       const recentMsgs = await Message.find({ to_user_id: userId })
-        .populate("from_user_id to_user_id", "name profile_pic")
+        .populate("from_user_id to_user_id")
         .sort({ createdAt: -1 });
       res.status(200).json({ success: true, data: recentMsgs });
     } catch (error) {

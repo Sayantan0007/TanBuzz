@@ -28,11 +28,6 @@ const storyController = {
         });
         const url = await imagekit.url({
           path: response.filePath,
-          transformation: [
-            { quality: "auto" },
-            { format: "webp" },
-            { width: "720" },
-          ],
         });
         media_url = url;
       }

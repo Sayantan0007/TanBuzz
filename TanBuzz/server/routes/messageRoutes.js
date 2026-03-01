@@ -7,5 +7,6 @@ const msgRoute = express.Router();
 msgRoute.get("/sse/:userId", sseController);
 msgRoute.post("/send",uploads.single("image"),protect, messageController.sendMessage);
 msgRoute.post("/get",protect, messageController.getMessages);
+msgRoute.get("/recent",protect, messageController.getRecentMsgs);
 
 module.exports = msgRoute;

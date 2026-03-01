@@ -210,13 +210,13 @@ const userControllers = {
         res
           .status(200)
           .json({ success: true, message: "Request sent successfully" });
-      } else if (alreadConnected && alreadConnected.status == "accepted") {
-        res.status(400).json({
+      } else if (alreadConnected && alreadConnected.status === "accepted") {
+         return res.status(400).json({
           success: false,
           message: "You are already connected to this user",
         });
       } else {
-        res.status(400).json({
+        return res.status(400).json({
           success: false,
           message: "Connection request is pending",
         });
@@ -229,7 +229,7 @@ const userControllers = {
   // get User Connections
   getUserConnections: async (req, res) => {
     try {
-      const { userId } = req.auth;
+      const { userId } = req.auth();
       const user = await User.findById(userId).populate(
         "following followers connections",
       );
