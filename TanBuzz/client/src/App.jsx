@@ -43,7 +43,7 @@ const App = () => {
 
   useEffect(() => {
     try {
-      if (isSignedIn) {
+      if (user) {
         const eventSource = new EventSource(
           `${import.meta.env.VITE_BASE_URL}/api/message/sse/${user.id}`,
         );
@@ -64,7 +64,7 @@ const App = () => {
         };
       }
     } catch (error) {}
-  }, [isSignedIn, dispatch, user]);
+  }, [ dispatch, user]);
   return (
     <>
       <Toaster />
