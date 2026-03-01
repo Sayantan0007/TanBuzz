@@ -17,8 +17,13 @@ connectDB();
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(cors());
-app.use(clerkMiddleware());
+app.use(
+  cors({
+    origin: "https://tan-buzz.vercel.app", // your frontend URL
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  }),
+);app.use(clerkMiddleware());
 
 app.use("/api/inngest", serve({ client: inngest, functions }));
 app.use("/api/user", userRoute);
