@@ -15,7 +15,7 @@ const RecentMsgs = () => {
       const { data } = await api.get("api/message/recent", {
         headers: { Authorization: `Bearer ${token}` },
       });
-    //   console.log(data);
+      //   console.log(data);
       if (data.success) {
         //Group messages by sender and get the latest message for each sender
         const grouped = data.data.reduce((acc, message) => {
@@ -40,8 +40,9 @@ const RecentMsgs = () => {
   useEffect(() => {
     if (user) {
       fetchRecentMessages();
-      setInterval(fetchRecentMessages, 30000); // Fetch recent messages every 30 seconds
-      return () => clearInterval(fetchRecentMessages);
+      // store the interval id so we can clear it later
+      const intervalId = setInterval(fetchRecentMessages, 30000); // Fetch recent messages every 30 seconds
+      return () => clearInterval(intervalId);
     }
   }, [user]);
   return (
@@ -69,7 +70,9 @@ const RecentMsgs = () => {
                   </p>
                 </div>
                 <div className="flex justify-between">
-                  <p className="text-gray-500">{m.content ? m.content : "Media"} </p>
+                  <p className="text-gray-500">
+                    {m.content ? m.content : "Media"}{" "}
+                  </p>
                   {!m.seen && (
                     <p className="bg-indigo-500 text-white flex items-center justify-center rounded-full w-4 h-4 text-[10px]">
                       1
