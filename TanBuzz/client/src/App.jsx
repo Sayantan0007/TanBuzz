@@ -45,7 +45,7 @@ const App = () => {
     try {
       if (isSignedIn) {
         const eventSource = new EventSource(
-          `${import.meta.env.VITE_BASE_URL}api/message/sse/${user.id}`,
+          `${import.meta.env.VITE_BASE_URL}/api/message/sse/${user.id}`,
         );
         eventSource.onmessage = (event) => {
           const message = JSON.parse(event.data);
