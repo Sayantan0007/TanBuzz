@@ -15,6 +15,13 @@ const port = process.env.PORT;
 const app = express();
 connectDB();
 
+// whitelist of allowed origins for CORS
+const allowedOrigins = [
+  "https://tan-buzz.vercel.app", // production frontend
+  "http://localhost:5173", // local dev (Vite default)
+  "http://localhost:3000", // alternate dev port
+];
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(
