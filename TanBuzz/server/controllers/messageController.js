@@ -119,7 +119,7 @@ const messageController = {
       res.status(200).json({ success: true, data: recentMsgs });
     } catch (error) {
       console.log(error);
-      res.status(500).json({ success: false, message: error.message });
+      res.json({ success: false, message: error.message });
     }
   },
 };
