@@ -12,5 +12,7 @@ router.post(
 );
 router.get("/feed", protect, postControllers.getPosts);
 router.post("/like", protect, postControllers.likePosts);
+router.put("/update", protect, postControllers.updatePost);
+router.delete("/delete", protect, postControllers.deletePost);
 
 module.exports = router;

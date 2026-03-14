@@ -17,11 +17,11 @@ export const fetchUserData = createAsyncThunk(
 export const updateUserData = createAsyncThunk(
   "user/updateUserData",
   async ({ userData, token }) => {
-    console.log(userData);
+    // console.log(userData);
     const { data } = await api.post(`/api/user/update`, userData, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    console.log(data);
+    // console.log(data);
     if (data.success) {
       toast.success(data.message);
       return data.user;

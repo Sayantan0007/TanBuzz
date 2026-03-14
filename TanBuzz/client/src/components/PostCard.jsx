@@ -1,17 +1,29 @@
-import { BadgeCheck, Heart, MessageCircle, Share2 } from "lucide-react";
+import {
+  BadgeCheck,
+  Heart,
+  MessageCircle,
+  Share2,
+  Trash,
+  EllipsisVertical,
+  Pencil,
+} from "lucide-react";
 import moment from "moment";
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useAuth } from "@clerk/clerk-react";
 import api from "../api/axios";
 import toast from "react-hot-toast";
 
-const PostCard = ({ post }) => {
+const PostCard = ({ post, profileId, setPosts }) => {
   let hashTagReplace = post.content.replace(
     /(#\w+)/g,
     '<span class="text-blue-600">$1</span>',
   );
+  const location = useLocation();
+  const [showOptions, setShowOptions] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editContent, setEditContent] = useState(post.content);
   const [likes, setLikes] = useState(post.likes_count);
   const currentUserData = useSelector((state) => state.user.value);
   const { getToken } = useAuth();
@@ -43,12 +55,59 @@ const PostCard = ({ post }) => {
   const handleComment = () => {};
   const handleShare = () => {};
   const navigate = useNavigate();
+  const handleDelete = async (postId) => {
+    try {
+      const token = await getToken();
+      const { data } = await api.delete("api/post/delete", {
+        data: { postId },
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (data.success) {
+        toast.success(data.message);
+        setPosts((prev) => prev.filter((post) => post._id !== postId));
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+  const handleEdit = () => {
+    setShowOptions(false);
+    setShowEditModal(true);
+  };
+  const handleUpdate = async () => {
+    try {
+      const token = await getToken();
+
+      const { data } = await api.put(
+        "api/post/update",
+        {
+          postId: post._id,
+          content: editContent,
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+
+      if (data.success) {
+        toast.success(data.message);
+
+        setPosts((prev) =>
+          prev.map((p) =>
+            p._id === post._id ? { ...p, content: editContent } : p,
+          ),
+        );
+
+        setShowEditModal(false);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
   // console.log(post);
   return (
-    <div className="bg-white rounded-xl shadow space-y-4 p-4 w-full max-w-2xl">
+    <div className="bg-white rounded-xl shadow space-y-4 p-4 w-full max-w-2xl relative">
       {/* user info */}
       <div
-        className="inline-flex items-center gap-3 cursor-pointer"
+        className="inline-flex items-center gap-3 cursor-pointer "
         onClick={() => navigate(`/profile/${post.user._id}`)}
       >
         <img
@@ -66,6 +125,33 @@ const PostCard = ({ post }) => {
           </div>
         </div>
       </div>
+      {!profileId && location.pathname === "/profile" && (
+        <div className="absolute right-4 cursor-pointer">
+          <EllipsisVertical
+            className="h-4 w-4 text-gray-600"
+            onClick={() => setShowOptions(!showOptions)}
+          />
+          {showOptions && (
+            <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-300  rounded-lg shadow-md text-sm">
+              <div
+                className="flex items-center text-gray-600 gap-2 px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => handleDelete(post._id)}
+              >
+                <Trash className="h-4 w-4" />
+                Delete
+              </div>
+
+              <div
+                className="flex items-center text-gray-600 gap-2 px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => handleEdit(post._id)}
+              >
+                <Pencil className="h-4 w-4" />
+                Edit
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       {/* Content */}
       {post.content && (
         <div
@@ -106,6 +192,36 @@ const PostCard = ({ post }) => {
           <span>{7}</span>
         </div>
       </div>
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-4 w-[400px] space-y-3">
+            <h3 className="font-semibold">Edit Post</h3>
+
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="w-full border rounded p-2 text-sm"
+              rows={4}
+            />
+
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-3 py-1 border rounded"
+                onClick={() => setShowEditModal(false)}
+              >
+                Cancel
+              </button>
+
+              <button
+                className="px-3 py-1 bg-blue-500 text-white rounded"
+                onClick={handleUpdate}
+              >
+                Update
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

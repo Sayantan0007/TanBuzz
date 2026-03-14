@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, NavLink, useParams } from "react-router-dom";
-import {
-  dummyConnectionsData,
-} from "../assets/assets";
+import { dummyConnectionsData } from "../assets/assets";
 import Loading from "../components/Loading";
 import UserProfileInfo from "../components/UserProfileInfo";
 import PostCard from "../components/PostCard";
@@ -92,7 +90,12 @@ const Profile = () => {
           {activeTab === "posts" && (
             <div className="mt-6 flex-col items-center gap-6">
               {posts.map((post) => (
-                <PostCard post={post} key={post._id} />
+                <PostCard
+                  post={post}
+                  key={post._id}
+                  profileId={profileId}
+                  setPosts={setPosts}
+                />
               ))}
             </div>
           )}

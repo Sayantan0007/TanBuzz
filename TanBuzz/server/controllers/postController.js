@@ -102,5 +102,95 @@ const postControllers = {
       return res.status(500).json({ success: false, message: error.message });
     }
   },
+  deletePost: async (req, res) => {
+    try {
+      const { userId } = req.auth();
+      const { postId } = req.body;
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.json({ success: false, message: "Invalid user" });
+      }
+      const isDeleted = await Post.findByIdAndDelete(postId);
+      if (isDeleted) {
+        res.json({ success: true, message: "Deleted Successfully" });
+      } else {
+        res.json({ success: false, message: "Fail to delete post" });
+      }
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  },
+  updatePost: async (req, res) => {
+    try {
+      const { userId } = req.auth();
+      const { postId, content } = req.body;
+      const images = req.files;
+
+      const post = await Post.findById(postId);
+
+      if (!post) {
+        return res.json({
+          success: false,
+          message: "Post not found",
+        });
+      }
+
+      // check ownership
+      if (post.user.toString() !== userId) {
+        return res.json({
+          success: false,
+          message: "Unauthorized action",
+        });
+      }
+
+      let image_urls = [...post.image_urls];
+
+      // upload new images if provided
+      if (images?.length) {
+        const newImages = await Promise.all(
+          images.map(async (image) => {
+            const fileBuffer = fs.readFileSync(image.path);
+
+            const response = await imagekit.upload({
+              file: fileBuffer,
+              fileName: image.originalname,
+              folder: "posts",
+            });
+
+            const url = imagekit.url({
+              path: response.filePath,
+              transformation: [
+                { quality: "auto" },
+                { format: "webp" },
+                { width: "1280" },
+              ],
+            });
+
+            return url;
+          }),
+        );
+
+        image_urls = [...image_urls, ...newImages];
+      }
+
+      post.content = content || post.content;
+      post.image_urls = image_urls;
+
+      await post.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Post updated successfully",
+        updatedPost: post,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  },
 };
 module.exports = postControllers;
