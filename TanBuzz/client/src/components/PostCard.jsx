@@ -15,11 +15,18 @@ import { useAuth } from "@clerk/clerk-react";
 import api from "../api/axios";
 import toast from "react-hot-toast";
 
-const PostCard = ({ post, profileId, setPosts }) => {
-  let hashTagReplace = post.content.replace(
-    /(#\w+)/g,
-    '<span class="text-blue-600">$1</span>',
+const renderContentWithHashtags = (content = "") =>
+  content.split(/(#\w+)/g).map((part, index) =>
+    /^#\w+$/.test(part) ? (
+      <span key={`${part}-${index}`} className="text-blue-600">
+        {part}
+      </span>
+    ) : (
+      <React.Fragment key={`text-${index}`}>{part}</React.Fragment>
+    ),
   );
+
+const PostCard = ({ post, profileId, setPosts }) => {
   const location = useLocation();
   const [showOptions, setShowOptions] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -64,7 +71,7 @@ const PostCard = ({ post, profileId, setPosts }) => {
       });
       if (data.success) {
         toast.success(data.message);
-        setPosts((prev) => prev.filter((post) => post._id !== postId));
+        setPosts?.((prev) => prev.filter((post) => post._id !== postId));
       }
     } catch (error) {
       toast.error(error.message);
@@ -90,7 +97,7 @@ const PostCard = ({ post, profileId, setPosts }) => {
       if (data.success) {
         toast.success(data.message);
 
-        setPosts((prev) =>
+        setPosts?.((prev) =>
           prev.map((p) =>
             p._id === post._id ? { ...p, content: editContent } : p,
           ),
@@ -154,10 +161,9 @@ const PostCard = ({ post, profileId, setPosts }) => {
       )}
       {/* Content */}
       {post.content && (
-        <div
-          className="text-gray-800 text-sm whitespace-pre-line"
-          dangerouslySetInnerHTML={{ __html: hashTagReplace }}
-        />
+        <div className="text-gray-800 text-sm whitespace-pre-line break-words">
+          {renderContentWithHashtags(post.content)}
+        </div>
       )}
       {/* Images */}
       <div className="grid grid-cols-2 gap-2">

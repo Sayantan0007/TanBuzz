@@ -9,42 +9,55 @@ const RecentMsgs = () => {
   const [msg, setMsg] = useState([]);
   const { user } = useUser();
   const { getToken } = useAuth();
-  const fetchRecentMessages = async () => {
-    try {
-      const token = await getToken();
-      const { data } = await api.get("api/message/recent", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      //   console.log(data);
-      if (data.success) {
-        //Group messages by sender and get the latest message for each sender
-        const grouped = data.data.reduce((acc, message) => {
-          const senderId = message.from_user_id._id;
-          if (!acc[senderId]) {
-            acc[senderId] = message; // Store the latest message for each sender
-          }
-          return acc;
-        }, {});
-        // Sort messages by date
-        const sortedMessages = Object.values(grouped).sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-        );
-        setMsg(sortedMessages);
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message);
-    }
-  };
   useEffect(() => {
-    if (user) {
-      fetchRecentMessages();
-      // store the interval id so we can clear it later
-      const intervalId = setInterval(fetchRecentMessages, 30000); // Fetch recent messages every 30 seconds
-      return () => clearInterval(intervalId);
+    if (!user) {
+      return;
     }
-  }, [user]);
+
+    let isMounted = true;
+
+    const fetchRecentMessages = async () => {
+      try {
+        const token = await getToken();
+        const { data } = await api.get("api/message/recent", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (data.success) {
+          const grouped = data.data.reduce((acc, message) => {
+            const senderId = message.from_user_id._id;
+            if (!acc[senderId]) {
+              acc[senderId] = message;
+            }
+            return acc;
+          }, {});
+
+          const sortedMessages = Object.values(grouped).sort(
+            (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+          );
+          setMsg(sortedMessages);
+        } else {
+          toast.error(data.message);
+        }
+      } catch (error) {
+        if (isMounted) {
+          toast.error(error.message);
+        }
+      }
+    };
+
+    fetchRecentMessages();
+    const intervalId = setInterval(fetchRecentMessages, 30000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [getToken, user]);
   return (
     <div className="bg-white max-w-xs mt-4 p-4 min-h-20 rounded-md shadow-lg text-xs text-slate-800">
       <h3 className="font-semibold text-slate-800 mb-4">Recent Messages</h3>

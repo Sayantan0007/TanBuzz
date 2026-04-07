@@ -6,7 +6,7 @@ const postControllers = {
   //add post
   addPost: async (req, res) => {
     try {
-      const { userId } = req.auth();
+      const userId = req.userId;
       let { content, post_type } = req.body;
       const images = req.files;
       let image_urls = [];
@@ -48,7 +48,7 @@ const postControllers = {
   // get posts
   getPosts: async (req, res) => {
     try {
-      const { userId } = req.auth();
+      const userId = req.userId;
       const user = await User.findById(userId);
 
       if (!user) {
@@ -75,7 +75,7 @@ const postControllers = {
   // like post
   likePosts: async (req, res) => {
     try {
-      const { userId } = req.auth();
+      const userId = req.userId;
       const { postId } = req.body;
       const post = await Post.findById(postId);
 
@@ -104,18 +104,29 @@ const postControllers = {
   },
   deletePost: async (req, res) => {
     try {
-      const { userId } = req.auth();
+      const userId = req.userId;
       const { postId } = req.body;
-      const user = await User.findById(userId);
-      if (!user) {
-        return res.json({ success: false, message: "Invalid user" });
+      const post = await Post.findById(postId);
+
+      if (!post) {
+        return res.status(404).json({
+          success: false,
+          message: "Post not found",
+        });
       }
-      const isDeleted = await Post.findByIdAndDelete(postId);
-      if (isDeleted) {
-        res.json({ success: true, message: "Deleted Successfully" });
-      } else {
-        res.json({ success: false, message: "Fail to delete post" });
+
+      if (post.user.toString() !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: "Unauthorized action",
+        });
       }
+
+      await Post.findByIdAndDelete(postId);
+      return res.status(200).json({
+        success: true,
+        message: "Deleted successfully",
+      });
     } catch (error) {
       console.log(error);
       return res.status(500).json({ success: false, message: error.message });
@@ -123,42 +134,37 @@ const postControllers = {
   },
   updatePost: async (req, res) => {
     try {
-      const { userId } = req.auth();
+      const userId = req.userId;
       const { postId, content } = req.body;
       const images = req.files;
-
       const post = await Post.findById(postId);
 
       if (!post) {
-        return res.json({
+        return res.status(404).json({
           success: false,
           message: "Post not found",
         });
       }
 
-      // check ownership
       if (post.user.toString() !== userId) {
-        return res.json({
+        return res.status(403).json({
           success: false,
           message: "Unauthorized action",
         });
       }
 
       let image_urls = [...post.image_urls];
-
-      // upload new images if provided
       if (images?.length) {
         const newImages = await Promise.all(
           images.map(async (image) => {
             const fileBuffer = fs.readFileSync(image.path);
-
             const response = await imagekit.upload({
               file: fileBuffer,
               fileName: image.originalname,
               folder: "posts",
             });
 
-            const url = imagekit.url({
+            return imagekit.url({
               path: response.filePath,
               transformation: [
                 { quality: "auto" },
@@ -166,8 +172,6 @@ const postControllers = {
                 { width: "1280" },
               ],
             });
-
-            return url;
           }),
         );
 

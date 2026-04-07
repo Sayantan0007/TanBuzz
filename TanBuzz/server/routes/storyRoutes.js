@@ -7,8 +7,8 @@ const route = express.Router();
 route.get("/get", protect, storyController.getStories);
 route.post(
   "/add",
-  uploads.single("story"),
   protect,
+  uploads.single("story"),
   storyController.addStory,
 );
 module.exports = route;

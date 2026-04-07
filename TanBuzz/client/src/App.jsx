@@ -26,45 +26,86 @@ const App = () => {
   const pathnameRef = useRef(pathname);
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (isSignedIn) {
-        const token = await getToken();
-        // console.log(token);
-        dispatch(fetchUserData(token));
-        dispatch(fetchConnections(token));
+    if (!isSignedIn) {
+      return;
+    }
+
+    let isMounted = true;
+
+    (async () => {
+      const token = await getToken();
+      if (!token || !isMounted) {
+        return;
       }
+
+      dispatch(fetchUserData(token));
+      dispatch(fetchConnections(token));
+    })();
+
+    return () => {
+      isMounted = false;
     };
-    fetchData();
-  }, [isSignedIn]);
+  }, [dispatch, getToken, isSignedIn]);
 
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
 
   useEffect(() => {
-    try {
-      if (user) {
-        const eventSource = new EventSource(
-          `${import.meta.env.VITE_BASE_URL}/api/message/sse/${user.id}`,
+    if (!user) {
+      return;
+    }
+
+    let eventSource;
+    let isCancelled = false;
+
+    (async () => {
+      try {
+        const token = await getToken();
+        if (!token || isCancelled) {
+          return;
+        }
+
+        const { data } = await fetch(
+          `${import.meta.env.VITE_BASE_URL}/api/message/sse-token`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        ).then((response) => response.json().then((body) => ({ data: body })));
+
+        if (!data?.success || isCancelled) {
+          return;
+        }
+
+        eventSource = new EventSource(
+          `${import.meta.env.VITE_BASE_URL}/api/message/sse?token=${data.token}`,
         );
+
         eventSource.onmessage = (event) => {
           const message = JSON.parse(event.data);
-          // console.log(message);
           if (pathnameRef.current === `/messages/${message.from_user_id._id}`) {
             dispatch(addMessage(message));
-          } else {
-            toast.custom((t) => <Notification t={t} message={message} />, {
-              position: "bottom-right",
-              duration: 6000,
-            });
+            return;
           }
+
+          toast.custom((t) => <Notification t={t} message={message} />, {
+            position: "bottom-right",
+            duration: 6000,
+          });
         };
-        return () => {
-          eventSource.close();
-        };
+      } catch (error) {
+        console.error("SSE connection failed", error);
       }
-    } catch (error) {}
-  }, [ dispatch, user]);
+    })();
+
+    return () => {
+      isCancelled = true;
+      eventSource?.close();
+    };
+  }, [dispatch, getToken, user]);
   return (
     <>
       <Toaster />

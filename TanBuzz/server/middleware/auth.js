@@ -9,6 +9,7 @@ const protect = async (req, res, next) => {
       });
     }
 
+    req.userId = userId;
     next(); // allow access
   } catch (error) {
     return res.status(401).json({

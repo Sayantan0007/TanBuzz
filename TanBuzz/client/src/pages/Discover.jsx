@@ -39,10 +39,18 @@ const Discover = () => {
     }
   };
   useEffect(() => {
+    let isMounted = true;
+
     getToken().then((token) => {
-      dispatch(fetchUserData(token));
+      if (isMounted) {
+        dispatch(fetchUserData(token));
+      }
     });
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [dispatch, getToken]);
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-6xl mx-auto p-6">

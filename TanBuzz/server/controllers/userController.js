@@ -4,11 +4,15 @@ const Connection = require("../model/connection");
 const Post = require("../model/post");
 const User = require("../model/user");
 const fs = require("fs");
+
+const escapeRegex = (value = "") =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const userControllers = {
   // get user data
   getUserData: async (req, res) => {
     try {
-      const { userId } = req.auth();
+      const userId = req.userId;
       const user = await User.findById(userId);
       if (!user) {
         return res
@@ -23,7 +27,7 @@ const userControllers = {
   //   update user data
   updateUserdata: async (req, res) => {
     try {
-      const { userId } = req.auth();
+      const userId = req.userId;
       let { username, full_name, bio, location } = req.body;
 
       const tempUser = await User.findById(userId);
@@ -100,18 +104,22 @@ const userControllers = {
   // find users by username,email,location,name
   findUsers: async (req, res) => {
     try {
-      const { userId } = req.auth();
+      const userId = req.userId;
       const { inputQuery } = req.body;
-      // const inputQuery = inputQuery.trim();
+      const safeQuery = escapeRegex((inputQuery || "").trim());
+
+      if (!safeQuery) {
+        return res.status(200).json({ success: true, users: [] });
+      }
 
       const allUsers = await User.find({
         $or: [
-          { username: new RegExp(inputQuery, "i") }, // i for case insensitive
-          { email: new RegExp(inputQuery, "i") },
-          { full_name: new RegExp(inputQuery, "i") },
-          { location: new RegExp(inputQuery, "i") },
+          { username: new RegExp(safeQuery, "i") },
+          { email: new RegExp(safeQuery, "i") },
+          { full_name: new RegExp(safeQuery, "i") },
+          { location: new RegExp(safeQuery, "i") },
         ],
-      });
+      }).limit(25);
 
       const filteredUsers = allUsers.filter((user) => user._id !== userId);
       res.status(200).json({ success: true, users: filteredUsers });
@@ -123,21 +131,34 @@ const userControllers = {
   // follow users
   followUser: async (req, res) => {
     try {
-      const { userId } = req.auth();
+      const userId = req.userId;
       const { id } = req.body;
 
+      if (userId === id) {
+        return res.status(400).json({
+          success: false,
+          message: "You cannot follow yourself.",
+        });
+      }
+
       const user = await User.findById(userId);
+      const toUser = await User.findById(id);
+
+      if (!user || !toUser) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
       if (user.following.includes(id)) {
         return res
           .status(400)
           .json({ success: false, message: "Already following this user." });
       }
-      user.following.push(id);
-      await user.save();
 
-      const toUser = await User.findById(id);
-      toUser.followers.push(userId);
-      await toUser.save();
+      await User.findByIdAndUpdate(userId, { $addToSet: { following: id } });
+      await User.findByIdAndUpdate(id, { $addToSet: { followers: userId } });
       res.status(200).json({
         success: true,
         message: "Now you are following this user." + toUser.username,
@@ -150,16 +171,19 @@ const userControllers = {
   // unfollow User
   unFollowUser: async (req, res) => {
     try {
-      const { userId } = req.auth();
+      const userId = req.userId;
       const { id } = req.body;
 
-      const user = await User.findById(userId);
-      user.following = user.following.filter((uid) => uid !== id);
-      await user.save();
-
       const toUser = await User.findById(id);
-      toUser.followers = toUser.followers.filter((uid) => uid !== userId);
-      await toUser.save();
+      if (!toUser) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      await User.findByIdAndUpdate(userId, { $pull: { following: id } });
+      await User.findByIdAndUpdate(id, { $pull: { followers: userId } });
       res.status(200).json({
         success: true,
         message: "Now you have unfollowed this user." + toUser.username,
@@ -172,8 +196,23 @@ const userControllers = {
   // send connection request
   sendConnectionRequest: async (req, res) => {
     try {
-      const { userId } = req.auth();
+      const userId = req.userId;
       const { id } = req.body;
+
+      if (userId === id) {
+        return res.status(400).json({
+          success: false,
+          message: "You cannot connect with yourself",
+        });
+      }
+
+      const targetUser = await User.findById(id);
+      if (!targetUser) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
 
       // check if user has sent more than 20 connection rquests in last 24 hours
       const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -229,10 +268,16 @@ const userControllers = {
   // get User Connections
   getUserConnections: async (req, res) => {
     try {
-      const { userId } = req.auth();
+      const userId = req.userId;
       const user = await User.findById(userId).populate(
         "following followers connections",
       );
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
       const connections = user.connections;
       const followers = user.followers;
       const following = user.following;
@@ -257,7 +302,7 @@ const userControllers = {
   // accept connection request
   acceptConnectionRequest: async (req, res) => {
     try {
-      const { userId } = req.auth();
+      const userId = req.userId;
       const { id } = req.body;
       const connectionRequest = await Connection.findOne({
         from_user_id: id,
@@ -269,13 +314,16 @@ const userControllers = {
           .status(400)
           .json({ success: false, message: "Connection request not found." });
       }
-      const user = await User.findById(userId);
-      user.connections.push(id);
-      await user.save();
-
       const toUser = await User.findById(id);
-      toUser.connections.push(userId);
-      await toUser.save();
+      if (!toUser) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      await User.findByIdAndUpdate(userId, { $addToSet: { connections: id } });
+      await User.findByIdAndUpdate(id, { $addToSet: { connections: userId } });
 
       connectionRequest.status = "accepted";
       await connectionRequest.save();

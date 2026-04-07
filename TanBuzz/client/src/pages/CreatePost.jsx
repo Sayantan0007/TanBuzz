@@ -9,17 +9,15 @@ import { useNavigate } from "react-router-dom";
 
 const CreatePost = () => {
   const { getToken } = useAuth();
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const [content, setContent] = useState("");
   const [images, setImage] = useState([]);
-  const [loading, setLoading] = useState(false);
 
   const user = useSelector((state) => state.user.value);
   const handlePost = async () => {
     if (!images.length && !content) {
       return toast.error("Post cannot be empty");
     }
-    setLoading(true);
     const postType =
       images.length && content
         ? "text_with_image"
@@ -32,7 +30,7 @@ const CreatePost = () => {
       formData.append("content", content);
       formData.append("post_type", postType);
       images.forEach((img) => formData.append("images", img));
-      const { data } = await api.post("/api/post/add" , formData, {
+      const { data } = await api.post("/api/post/add", formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
@@ -40,9 +38,9 @@ const CreatePost = () => {
       });
       setContent("");
       setImage([]);
-      if(data.success){
+      if (data.success) {
         navigate("/");
-      }else{
+      } else {
         toast.error("Post not added");
         throw new Error("Post not added");
       }
@@ -50,7 +48,6 @@ const CreatePost = () => {
       toast.error(error.message);
       throw new Error(error.message);
     }
-    setLoading(false);
   };
   return (
     <div className="min-h-screen bg-linear-to-b from-slate-50 to-white">

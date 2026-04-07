@@ -23,32 +23,44 @@ const Profile = () => {
   let profileData = allUserData.find((user) => {
     return user._id === profileId;
   });
-  const fetchUser = async (profileId) => {
-    try {
-      const token = await getToken();
-      const { data } = await api.post(
-        "/api/user/viewprofile",
-        { profileId },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      // console.log(data);
-      if (data.success) {
-        setUser(data.profile);
-        setPosts(data.posts);
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message);
-    }
-  };
   useEffect(() => {
-    if (profileId) {
-      fetchUser(profileId);
-    } else {
-      fetchUser(currentUser?._id);
+    const targetProfileId = profileId || currentUser?._id;
+    if (!targetProfileId) {
+      return;
     }
-  }, [profileId, currentUser?._id]);
+
+    let isMounted = true;
+
+    (async () => {
+      try {
+        const token = await getToken();
+        const { data } = await api.post(
+          "/api/user/viewprofile",
+          { profileId: targetProfileId },
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (data.success) {
+          setUser(data.profile);
+          setPosts(data.posts);
+        } else {
+          toast.error(data.message);
+        }
+      } catch (error) {
+        if (isMounted) {
+          toast.error(error.message);
+        }
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?._id, getToken, profileId]);
   // console.log(profileData);
   return user ? (
     <div className="relative h-full overflow-y-scroll bg-gray-50 p-6">

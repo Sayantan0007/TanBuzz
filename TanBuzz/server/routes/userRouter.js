@@ -8,11 +8,11 @@ const { messageController } = require("../controllers/messageController");
 route.get("/data", protect, UC.getUserData);
 route.post(
   "/update",
+  protect,
   uploads.fields([
     { name: "profile", maxCount: 1 },
     { name: "cover", maxCount: 1 },
   ]),
-  protect,
   UC.updateUserdata,
 );
 route.post("/search", protect, UC.findUsers);

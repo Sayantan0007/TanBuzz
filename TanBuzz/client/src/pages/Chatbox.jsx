@@ -23,14 +23,6 @@ const Chatbox = () => {
   const [user, setUser] = useState(null);
   const msgEndRef = useRef();
 
-  const fetchUserMessages = async () => {
-    try {
-      const token = await getToken();
-      dispatch(fetchMessages({ token, userId }));
-    } catch (error) {
-      toast.error(error.message);
-    }
-  };
   const sendMsg = async () => {
     try {
       if (!text && !images) return;
@@ -55,12 +47,26 @@ const Chatbox = () => {
     }
   };
   useEffect(() => {
-    fetchUserMessages();
+    let isMounted = true;
+
+    (async () => {
+      try {
+        const token = await getToken();
+        if (isMounted) {
+          dispatch(fetchMessages({ token, userId }));
+        }
+      } catch (error) {
+        if (isMounted) {
+          toast.error(error.message);
+        }
+      }
+    })();
 
     return () => {
+      isMounted = false;
       dispatch(resetMessage());
     };
-  }, [userId]);
+  }, [dispatch, getToken, userId]);
 
   useEffect(() => {
     if (connections.length > 0) {

@@ -1,13 +1,25 @@
 const fs = require("fs");
+const crypto = require("crypto");
 const imagekit = require("../configure/imageKit");
 const Message = require("../model/message");
 // create an empty object to store SS Event connections
 const connections = {};
+const sseTokens = new Map();
 
 // controller function for the SSE endpoint
 const sseController = (req, res) => {
-  const { userId } = req.params;
-  // console.log("New Client Connected : ", userId);
+  const { token } = req.query;
+  const session = sseTokens.get(token);
+
+  if (!session || session.expiresAt < Date.now()) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired stream token",
+    });
+  }
+
+  const userId = session.userId;
+  sseTokens.delete(token);
 
   // Set headers for SSE
   res.setHeader("Content-Type", "text/event-stream");
@@ -18,8 +30,8 @@ const sseController = (req, res) => {
   // Store the connection
   connections[userId] = res;
 
-  // Send a welcome message to the client
-  res.write(`log: Welcome, User ${userId}!\n\n`);
+  // Send an initial event so the browser keeps the stream open reliably.
+  res.write(`event: connected\ndata: ${JSON.stringify({ ok: true })}\n\n`);
 
   // Handle client disconnection
   req.on("close", () => {
@@ -29,13 +41,34 @@ const sseController = (req, res) => {
 };
 
 const messageController = {
+  createSseToken: async (req, res) => {
+    const userId = req.userId;
+    const token = crypto.randomBytes(24).toString("hex");
+    sseTokens.set(token, {
+      userId,
+      expiresAt: Date.now() + 60 * 1000,
+    });
+
+    return res.status(200).json({
+      success: true,
+      token,
+    });
+  },
   // send message
   sendMessage: async (req, res) => {
     try {
-      const { userId } = req.auth();
+      const userId = req.userId;
       const { to_user_id, content } = req.body;
       const image = req.file;
       let media_url = "";
+
+      if (!content && !image) {
+        return res.status(400).json({
+          success: false,
+          message: "Message content or image is required",
+        });
+      }
+
       let msg_type = content ? "text" : "image";
       if (msg_type === "image") {
         const fileBuffer = fs.readFileSync(image.path);
@@ -82,7 +115,7 @@ const messageController = {
   // get chat messages
   getMessages: async (req, res) => {
     try {
-      const { userId } = req.auth();
+      const userId = req.userId;
       const { to_user_id } = req.body;
 
       // 1️⃣ Mark messages as seen first
@@ -112,7 +145,7 @@ const messageController = {
   // get recent chats
   getRecentMsgs: async (req, res) => {
     try {
-      const { userId } = req.auth();
+      const userId = req.userId;
       const recentMsgs = await Message.find({ to_user_id: userId })
         .populate("from_user_id to_user_id")
         .sort({ createdAt: -1 });

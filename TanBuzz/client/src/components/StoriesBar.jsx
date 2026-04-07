@@ -12,7 +12,6 @@ const StoriesBar = () => {
   const [storiesData, setStoriesData] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [viewStory, setViewStory] = useState(null);
-  // const [fetchStory, setFetchStory] = useState(null);
 
   const fetchStoriesData = async () => {
     const token = await getToken();
@@ -29,12 +28,37 @@ const StoriesBar = () => {
     } catch (error) {
       toast.error(error.message);
     }
-
-    // setStoriesData(dummyStoriesData);
   };
   useEffect(() => {
-    fetchStoriesData();
-  }, []);
+    let isMounted = true;
+
+    (async () => {
+      const token = await getToken();
+      try {
+        const { data } = await api.get("/api/story/get", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (data.success) {
+          setStoriesData(data.story);
+        } else {
+          toast.error(data.message);
+        }
+      } catch (error) {
+        if (isMounted) {
+          toast.error(error.message);
+        }
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [getToken]);
   return (
     <div className="w-screen sm:w-[calc(100vw-240px)] lg:max-w-2xl no-scrollbar overflow-x-auto px-4">
       <div className="flex gap-4 pb-5">
@@ -100,7 +124,11 @@ const StoriesBar = () => {
       )}
       {/* view stories modal */}
       {viewStory && (
-        <StroryView viewStory={viewStory} setViewStory={setViewStory} />
+        <StroryView
+          key={viewStory._id}
+          viewStory={viewStory}
+          setViewStory={setViewStory}
+        />
       )}
     </div>
   );

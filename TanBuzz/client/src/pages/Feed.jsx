@@ -13,22 +13,40 @@ const Feed = () => {
   const { getToken } = useAuth();
   const [loading, setLoading] = useState(true);
 
-  const fetchFeedData = async () => {
-    const token = await getToken();
-    const { data } = await api.get("/api/post/feed", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if(data.success){
-      setFeedData(data.posts);
-    }else{
-      toast.error(data.message);
-    }
-    setLoading(false);
-    // console.log(data);
-  };
   useEffect(() => {
-    fetchFeedData();
-  }, []);
+    let isMounted = true;
+
+    (async () => {
+      try {
+        const token = await getToken();
+        const { data } = await api.get("/api/post/feed", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (data.success) {
+          setFeedData(data.posts);
+        } else {
+          toast.error(data.message);
+        }
+      } catch (error) {
+        if (isMounted) {
+          toast.error(error.message);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [getToken]);
 
   return loading ? (
     <Loading />

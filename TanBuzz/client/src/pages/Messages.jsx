@@ -1,12 +1,10 @@
-import React, {  useState } from "react";
+import React from "react";
 import { Eye, MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 
 const Messages = () => {
-  const [recentMsgs, setRecentMsgs] = useState([]);
-  const connections = useSelector((state => state.connections.connection))
- 
+  const connections = useSelector((state) => state.connections.connection);
 
   const navigate = useNavigate();
   return (
